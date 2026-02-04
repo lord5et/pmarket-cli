@@ -1,1 +1,24 @@
-(()=>{"use strict";var e={147:e=>{e.exports=require("fs")},37:e=>{e.exports=require("os")},17:e=>{e.exports=require("path")}},r={};function i(s){var t=r[s];if(void 0!==t)return t.exports;var o=r[s]={exports:{}};return e[s](o,o.exports,i),o.exports}(()=>{const e=i(147),r=i(17),s=i(37),t=".pmarket-cli",o=(0,s.homedir)()+r.sep+t+r.sep+"config.json";(0,e.existsSync)((0,s.homedir)()+r.sep+t)||(0,e.mkdirSync)((0,s.homedir)()+r.sep+t),(0,e.existsSync)(o)||((0,e.writeFileSync)(o,JSON.stringify({apiKey:"",apiSecret:"",passphrase:"",rpcProvider:"",privateKey:""},null,4)),console.log("Configuration file created:",o))})()})();
+#!/usr/bin/env node
+import { existsSync, mkdirSync, writeFileSync } from "fs";
+import { join } from 'path';
+import { homedir } from 'os';
+
+const PMARKET_CLI_DIR = '.pmarket-cli';
+const CONFIG_FILE = 'config.json';
+
+const configDir = join(homedir(), PMARKET_CLI_DIR);
+const configPath = join(configDir, CONFIG_FILE);
+
+const config = {
+    privateKey: ''
+};
+
+if (!existsSync(configDir)) {
+    mkdirSync(configDir, { recursive: true });
+}
+
+if (!existsSync(configPath)) {
+    writeFileSync(configPath, JSON.stringify(config, null, 4));
+    console.log('Configuration file created:', configPath);
+    console.log('Please add your private key to the config file.');
+}

@@ -1,9 +1,10 @@
-import { PolymarketService } from "../services/polymarket.service";
-import { Strategy } from "./strategy";
+import { PolymarketService } from "../services/polymarket.service.js";
+import { Strategy } from "./strategy.js";
 import { Side } from "@polymarket/clob-client";
 
 export class SellStrategy implements Strategy {
     constructor(private polymarketService: PolymarketService) { }
+
     async execute(options: { sell: string[] }): Promise<void> {
         const token_id = options.sell[0];
         const amountOfTokens = +options.sell[1];
