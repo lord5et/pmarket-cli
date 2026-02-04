@@ -1,3 +1,3 @@
 export interface Strategy {
-    execute(options:any): Promise<void>;
+    execute(options: Record<string, unknown>): Promise<void>;
 }

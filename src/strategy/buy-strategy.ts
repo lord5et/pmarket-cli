@@ -1,6 +1,6 @@
 import { Side } from "@polymarket/clob-client";
-import { Strategy } from "./strategy";
-import { PolymarketService } from "../services/polymarket.service";
+import { Strategy } from "./strategy.js";
+import { PolymarketService } from "../services/polymarket.service.js";
 
 export class BuyStrategy implements Strategy {
     constructor(private polymarketService: PolymarketService) { }

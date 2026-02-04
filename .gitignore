@@ -17,8 +17,10 @@ npm-debug.log
 /coverage
 /.nyc_output
 
+# build output
+/dist
+
 # env variables
 .env
 # pmarketcli ConfigService test dir
 .pmarketcli
-/dist/src

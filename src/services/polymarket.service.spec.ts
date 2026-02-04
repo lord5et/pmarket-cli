@@ -1,11 +1,11 @@
+import { jest } from '@jest/globals';
 import {
   ClobClient,
   OrderBookSummary,
   OrderType,
 } from "@polymarket/clob-client";
-import { ConfigService } from "./config.service";
-import { Market, PolymarketService } from "./polymarket.service";
-import { Test } from "@nestjs/testing";
+import { ConfigService } from "./config.service.js";
+import { Market, PolymarketService } from "./polymarket.service.js";
 import { ethers } from "ethers";
 import { Side, SignatureType, SignedOrder } from "@polymarket/order-utils";
 import { Side as ClobClientSide } from "@polymarket/clob-client";
@@ -32,9 +32,9 @@ const markets: Market[] = [
         winner: false,
       },
     ],
-    rewards: {incentiveProgram: "aadas",totalRewardPool: "sadasdas" },
+    rewards: { incentiveProgram: "aadas", totalRewardPool: "sadasdas" },
     description:
-      'This market will resolve to "Yes" if the Boston Celtics become the 2022-23 NBA Champion. Otherwise, this market will resolve to "No".\n\nIf it is determined at any point that it is impossible for the Celtics to be the 2022-23 NBA Champion based on the rules of the NBA (e.g. they\'re eliminated in the playoffs), this market will immediately resolve to "No."\n\nIf this team is still in contention to become the champion and the champion still isn\'t determined by October 24, 2023, 11:59:59 PM ET, this market will resolve 50-50.',
+      'This market will resolve to "Yes" if the Boston Celtics become the 2022-23 NBA Champion.',
     question: "Will the Celtics be the 2022-23 NBA Champion?",
     active: true,
     closed: true,
@@ -48,7 +48,7 @@ const markets: Market[] = [
     fpmm: "0x34EC3128703f4aC2D990A04776Bd5A0E451f6088",
     min_incentive_size: "0",
     max_incentive_spread: "0.2",
-    category: "adsadsa"
+    category: "adsadsa",
   },
   {
     condition_id:
@@ -71,9 +71,9 @@ const markets: Market[] = [
         winner: false,
       },
     ],
-    rewards: {incentiveProgram: "aadas",totalRewardPool: "sadasdas" },
+    rewards: { incentiveProgram: "aadas", totalRewardPool: "sadasdas" },
     description:
-      "This market will resolve to “Yes” if Vivek Ramaswamy wins the 2024 nomination of the Republican Party for U.S. president. Otherwise, this market will resolve to “No”. \n\nThe resolution source for this market will be a consensus of official GOP sources, including https://www.gop.com. Any replacement of the nominee before election day will not change the resolution of the market.",
+      "This market will resolve to \"Yes\" if Vivek Ramaswamy wins the 2024 nomination.",
     question:
       "Will Vivek Ramaswamy win the U.S. 2024 Republican presidential nomination?",
     active: true,
@@ -89,73 +89,55 @@ const markets: Market[] = [
     fpmm: "0x055e0D264A2f865c7D5c0A58A2229F66135530FD",
     min_incentive_size: "0",
     max_incentive_spread: "0.2",
-    category: "adsadsa"
+    category: "adsadsa",
   },
 ];
 
 const orderBook: OrderBookSummary = {
   bids: [
-    {
-      price: "0.5",
-      size: "100",
-    },
-    {
-      price: "0.4",
-      size: "100",
-    },
+    { price: "0.5", size: "100" },
+    { price: "0.4", size: "100" },
   ],
   asks: [
-    {
-      price: "0.6",
-      size: "100",
-    },
-    {
-      price: "0.7",
-      size: "100",
-    },
+    { price: "0.6", size: "100" },
+    { price: "0.7", size: "100" },
   ],
   market: "marketID",
   asset_id: "asset_id",
   hash: "hash",
-  timestamp: 'timestamp'
+  timestamp: "timestamp",
+  min_order_size: "15",
+  tick_size: "0.01",
+  neg_risk: false,
 };
 
 describe("PolymarketService", () => {
   let polymarketService: PolymarketService;
-  beforeAll(async () => {
-    //mock conifg service
-    const configService = {
-      get: (key: string) => {
-        if (key === "privateKey") {
-          const wallet = ethers.Wallet.createRandom();
-          const privateKey = wallet.privateKey;
-          return privateKey;
-        } else {
-          return "something else";
-        }
-      },
-      getCreds: () => {
-        return {
-          key: "something",
-          secret: "secret",
-          passphrase: "passphrase",
-        };
-      },
-    };
-    const moduleRef = await Test.createTestingModule({
-      providers: [PolymarketService, ConfigService],
-    })
-      .overrideProvider(ConfigService)
-      .useValue(configService)
-      .compile();
 
-    polymarketService = moduleRef.get<PolymarketService>(PolymarketService);
+  beforeAll(() => {
+    const wallet = ethers.Wallet.createRandom();
+    const mockConfigService = {
+      getPrivateKey: () => wallet.privateKey,
+      getRpcProvider: () => "https://polygon-rpc.com",
+      getFunderAddress: () => wallet.address,
+      getCreds: () => ({
+        key: "something",
+        secret: "secret",
+        passphrase: "passphrase",
+      }),
+      hasCredentials: () => true,
+      isConfigAvailable: () => true,
+      saveCredentials: jest.fn(),
+      getConfigDir: () => "/tmp",
+    } as unknown as ConfigService;
+
+    polymarketService = new PolymarketService(mockConfigService);
     jest
       .spyOn(polymarketService, "fetchAllMarkets")
       .mockImplementation(() => Promise.resolve(markets));
   });
 
-  it("should only return markets accepting orders ", async () => {
+  it("should only return markets accepting orders", async () => {
     const marketsAcceptingOrders =
       await polymarketService.getMarketsAcceptingOrders();
     expect(marketsAcceptingOrders.length).toBe(1);
@@ -180,26 +162,23 @@ describe("PolymarketService", () => {
       side: Side.BUY,
       signatureType: SignatureType.EOA,
     };
-    // jest.spyOn(polymarketService, 'determineMakerOrTakerFee').mockImplementation(() => Promise.resolve({ fee: 0, side: 'taker' }));
 
     const getOrderBookSpy = jest.spyOn(ClobClient.prototype, "getOrderBook");
-    getOrderBookSpy.mockImplementation((tokenID): Promise<OrderBookSummary> => {
-      // Mocked implementation
+    getOrderBookSpy.mockImplementation((): Promise<OrderBookSummary> => {
       return Promise.resolve(orderBook);
     });
 
     const createOrderBookSpy = jest.spyOn(ClobClient.prototype, "createOrder");
-    createOrderBookSpy.mockImplementation((userOrder): Promise<SignedOrder> => {
-      // Mocked implementation
+    createOrderBookSpy.mockImplementation((): Promise<SignedOrder> => {
       return Promise.resolve(signedOrder);
     });
 
     const postOrderSpy = jest.spyOn(ClobClient.prototype, "postOrder");
-    postOrderSpy.mockImplementation((order, orderType): Promise<any> => {
-      // Mocked implementation
+    postOrderSpy.mockImplementation((): Promise<unknown> => {
       return Promise.resolve({});
     });
-    const resp = await polymarketService.marketOrder(
+
+    await polymarketService.marketOrder(
       "tokenID",
       ClobClientSide.BUY,
       20,
@@ -208,6 +187,7 @@ describe("PolymarketService", () => {
     expect(postOrderSpy).toHaveBeenCalledWith(signedOrder, OrderType.GTC);
     postOrderSpy.mockRestore();
     createOrderBookSpy.mockRestore();
+    getOrderBookSpy.mockRestore();
   });
 
   it("should call postOrder with SELL OrderType.GTC", async () => {
@@ -228,28 +208,29 @@ describe("PolymarketService", () => {
     };
 
     const getOrderBookSpy = jest.spyOn(ClobClient.prototype, "getOrderBook");
-    getOrderBookSpy.mockImplementation((tokenID): Promise<OrderBookSummary> => {
-      // Mocked implementation
+    getOrderBookSpy.mockImplementation((): Promise<OrderBookSummary> => {
       return Promise.resolve(orderBook);
     });
 
     const createOrderBookSpy = jest.spyOn(ClobClient.prototype, "createOrder");
-    createOrderBookSpy.mockImplementation((userOrder): Promise<SignedOrder> => {
-      // Mocked implementation
+    createOrderBookSpy.mockImplementation((): Promise<SignedOrder> => {
       return Promise.resolve(signedOrder);
     });
 
     const postOrderSpy = jest.spyOn(ClobClient.prototype, "postOrder");
-    postOrderSpy.mockImplementation((order, orderType): Promise<any> => {
-      // Mocked implementation
+    postOrderSpy.mockImplementation((): Promise<unknown> => {
       return Promise.resolve({});
     });
-    const resp = await polymarketService.marketOrder(
+
+    await polymarketService.marketOrder(
       "tokenID",
       ClobClientSide.SELL,
       20,
       0.5
     );
     expect(postOrderSpy).toHaveBeenCalledWith(signedOrder, OrderType.GTC);
+    postOrderSpy.mockRestore();
+    createOrderBookSpy.mockRestore();
+    getOrderBookSpy.mockRestore();
   });
 });

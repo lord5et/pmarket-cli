@@ -1,34 +1,44 @@
-#! /usr/bin/env node
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
-import { PolymarketService } from './services/polymarket.service';
-import { getProgram } from './program';
-import { ContractService } from './services/contract.service';
-import * as figlet from "figlet";
-import { Context } from './strategy/context';
-import { setAndExecuteStrategy } from './utils';
-import { name } from '../package.json';
+#!/usr/bin/env node
+import 'dotenv/config';
+import { getProgram } from './program.js';
+import { ConfigService } from './services/config.service.js';
+import { PolymarketService } from './services/polymarket.service.js';
+import { ContractService } from './services/contract.service.js';
+import { CacheService } from './services/cache.service.js';
+import { Context } from './strategy/context.js';
+import { InitStrategy } from './strategy/init-strategy.js';
 
-async function bootstrap() {
-  const app = await NestFactory.createApplicationContext(AppModule, { logger: false });
-  const polymarketService = app.get(PolymarketService);
-  const contractService = app.get(ContractService);
-  console.log(figlet.textSync(name));
+async function main() {
   const program = getProgram();
 
-  //show help if no arguments are passed
   if (!process.argv.slice(2).length) {
     program.outputHelp();
+    return;
   }
-  //parsed options
+
   const options = program.parse(process.argv).opts();
 
-  //strategy pattern to handle different commands
-  const context = new Context(polymarketService, contractService);
+  // Handle init command separately - it only needs ConfigService
+  // and should not trigger warnings from other services
+  if (options.init) {
+    const config = new ConfigService();
+    const initStrategy = new InitStrategy(config);
+    await initStrategy.execute(options);
+    return;
+  }
+
+  const config = new ConfigService();
+  const cache = new CacheService(config);
+  const polymarket = new PolymarketService(config);
+  const contract = new ContractService(config);
+
+  const context = new Context(polymarket, contract, cache, config);
+
   const strategy = context.determineStrategy(options);
   if (strategy) {
-    setAndExecuteStrategy(strategy, options, context);
+    context.setStrategy(strategy);
+    await context.executeStrategy(options);
   }
 }
-bootstrap();
 
+main().catch(console.error);

@@ -1,66 +1,67 @@
-import { PolymarketService } from "../services/polymarket.service"
-import { Strategy } from "./strategy"
-import { ContractService } from "../services/contract.service"
-import { ListStrategy } from "./list-strategy"
-import { BuyStrategy } from "./buy-strategy"
-import { SellStrategy } from "./sell-strategy"
-import { AllowanceStrategy } from "./allowance-strategy"
-import { OrderBookStrategy } from "./order-book-strategy"
-import { CancelAllStrategy } from "./cancel-all-strategy"
-import { ApiKeysStrategy } from "./api-keys-strategy"
+import { PolymarketService } from "../services/polymarket.service.js";
+import { Strategy } from "./strategy.js";
+import { ContractService } from "../services/contract.service.js";
+import { CacheService } from "../services/cache.service.js";
+import { ConfigService } from "../services/config.service.js";
+import { ListStrategy } from "./list-strategy.js";
+import { BuyStrategy } from "./buy-strategy.js";
+import { SellStrategy } from "./sell-strategy.js";
+import { AllowanceStrategy } from "./allowance-strategy.js";
+import { OrderBookStrategy } from "./order-book-strategy.js";
+import { CancelAllStrategy } from "./cancel-all-strategy.js";
+import { ApiKeysStrategy } from "./api-keys-strategy.js";
+import { RefreshStrategy } from "./refresh-strategy.js";
+import { InitStrategy } from "./init-strategy.js";
 
 export class Context {
-    // The context maintains a reference to one of the strategy
-    // objects. The context doesn't know the concrete class of a
-    // strategy. It should work with all strategies via the
-    // strategy interface.
-    private strategy: Strategy
-    constructor(private polymarketService: PolymarketService, private contractService: ContractService) { }
+    private strategy: Strategy | undefined;
 
-    // Usually the context accepts a strategy through the
-    // constructor, and also provides a setter so that the
-    // strategy can be switched at runtime.
+    constructor(
+        private polymarketService: PolymarketService,
+        private contractService: ContractService,
+        private cacheService: CacheService,
+        private configService: ConfigService
+    ) { }
+
     setStrategy = (strategy: Strategy): void => {
-        this.strategy = strategy
+        this.strategy = strategy;
     }
 
-    // The context delegates some work to the strategy object
-    // instead of implementing multiple versions of the
-    // algorithm on its own.
-    executeStrategy = (options: any): void => {
-        this.strategy.execute(options)
+    executeStrategy = async (options: Record<string, unknown>): Promise<void> => {
+        if (this.strategy) {
+            await this.strategy.execute(options);
+        }
     }
 
-    determineStrategy = (options: any): Strategy => {
-        let strategy: Strategy;
-        //list all markets matching filter
+    determineStrategy = (options: Record<string, unknown>): Strategy | undefined => {
+        // Init should be checked first - it works without a valid private key
+        if (options.init) {
+            return new InitStrategy(this.configService);
+        }
         if (options.list) {
-            strategy = new ListStrategy(this.polymarketService);
+            return new ListStrategy(this.polymarketService, this.cacheService);
         }
-        //buy token
-        if (options.buy && options.buy.length === 3) {
-            strategy = new BuyStrategy(this.polymarketService);
+        if (options.refresh) {
+            return new RefreshStrategy(this.polymarketService, this.cacheService);
         }
-        //sell token
-        if (options.sell && options.sell.length === 3) {
-            strategy = new SellStrategy(this.polymarketService);
+        if (options.buy && Array.isArray(options.buy) && options.buy.length === 3) {
+            return new BuyStrategy(this.polymarketService);
         }
-        //set allowance
+        if (options.sell && Array.isArray(options.sell) && options.sell.length === 3) {
+            return new SellStrategy(this.polymarketService);
+        }
         if (options.allowance) {
-            strategy = new AllowanceStrategy(this.contractService);
+            return new AllowanceStrategy(this.contractService);
         }
-        //show order book for specific token
         if (options.orderBook) {
-            strategy = new OrderBookStrategy(this.polymarketService);
+            return new OrderBookStrategy(this.polymarketService);
         }
-        //cancel all orders
         if (options.cancelAll) {
-            strategy = new CancelAllStrategy(this.polymarketService);
+            return new CancelAllStrategy(this.polymarketService);
         }
-        //api keys
         if (options.keys) {
-            strategy = new ApiKeysStrategy(this.polymarketService);
+            return new ApiKeysStrategy(this.polymarketService);
         }
-        return strategy;
+        return undefined;
     }
 }
