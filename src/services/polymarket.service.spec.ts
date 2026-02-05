@@ -109,6 +109,7 @@ const orderBook: OrderBookSummary = {
   min_order_size: "15",
   tick_size: "0.01",
   neg_risk: false,
+  last_trade_price: "0.5",
 };
 
 describe("PolymarketService", () => {

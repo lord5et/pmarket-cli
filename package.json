@@ -34,7 +34,7 @@
     "postinstall": "node ./scripts/create-config.js"
   },
   "dependencies": {
-    "@polymarket/clob-client": "^4.12.0",
+    "@polymarket/clob-client": "^5.2.1",
     "axios": "^1.7.0",
     "better-sqlite3": "^11.7.0",
     "commander": "^12.0.0",

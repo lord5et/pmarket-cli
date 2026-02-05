@@ -24,7 +24,8 @@ export class InitStrategy implements Strategy {
             console.log('Config file:', this.configService.getConfigPath());
             console.log('');
             console.log('Next steps:');
-            console.log('  1. Fund your wallet with MATIC (for gas) and USDC (for trading)');
+            console.log('  1. Fund your wallet with MATIC (for gas) and USDC.e (for trading)');
+            console.log('     IMPORTANT: Use USDC.e (bridged USDC at 0x2791...), NOT native USDC!');
             console.log('  2. Set USDC allowance: pmarket-cli -a 500');
             console.log('  3. Refresh market cache: pmarket-cli -r');
             console.log('  4. List markets: pmarket-cli -l "Bitcoin"');

@@ -36,8 +36,9 @@ Each CLI command is implemented as a strategy:
 - `init-strategy.ts` - `-i` flag, initialize config with private key (onboarding)
 - `list-strategy.ts` - `-l` flag, lists markets (uses cache, fetches if expired)
 - `refresh-strategy.ts` - `-r` flag, refreshes the local market cache
-- `buy-strategy.ts` - `-b` flag, buy orders
-- `sell-strategy.ts` - `-s` flag, sell orders
+- `buy-strategy.ts` - `-b` flag, buy orders (token_id, size, price)
+- `sell-strategy.ts` - `-s` flag, sell orders (token_id, size, price)
+- `positions-strategy.ts` - `-p` flag, show current token positions with P&L
 - `allowance-strategy.ts` - `-a` flag, set USDC allowance
 - `order-book-strategy.ts` - `-o` flag, show order book
 - `cancel-all-strategy.ts` - `-c` flag, cancel all orders
@@ -127,10 +128,47 @@ The `PMARKET_CONFIG_DIR` environment variable overrides the default `~/.pmarket-
 3. **better-sqlite3**: Native module, requires rebuild on Node version changes
 4. **API Key Types**: `@polymarket/clob-client` returns `ApiKeyCreds` with `key`/`secret`/`passphrase` fields
 5. **Testing**: ALWAYS use `PMARKET_CONFIG_DIR` env var when manually testing to avoid overwriting user's real config
+6. **USDC.e vs USDC**: Polymarket ONLY works with USDC.e (bridged USDC at `0x2791...`), NOT native USDC (`0x3c49...`). This is the #1 cause of "insufficient balance" errors.
+7. **Neg_risk Markets**: Some markets require allowance on NegRiskExchange and NegRiskAdapter in addition to CTFExchange
+8. **Public RPC Rate Limits**: The default Polygon RPC has rate limits. The allowance command includes delays between transactions to avoid errors.
 
 ## External APIs
 
-- **Polymarket CLOB API**: `https://clob.polymarket.com/`
+- **Polymarket CLOB API**: `https://clob.polymarket.com/` - Trading operations
+- **Polymarket Data API**: `https://data-api.polymarket.com` - Positions, activity
 - **Polygon RPC** (default): `https://polygon-rpc.com`
-- **USDC Contract** (Polygon): `0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174`
-- **CTFExchange Contract**: `0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E`
+
+## Important Contracts
+
+### USDC.e (Bridged USDC) - REQUIRED
+
+**⚠️ Polymarket only works with USDC.e (bridged USDC), NOT native USDC!**
+
+| Token | Contract Address | Works? |
+|-------|------------------|--------|
+| **USDC.e (Bridged)** | `0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174` | ✅ YES |
+| USDC (Native) | `0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359` | ❌ NO |
+
+### Exchange Contracts (Need Allowance)
+
+Three contracts require USDC.e allowance for trading:
+
+| Contract | Address | Purpose |
+|----------|---------|---------|
+| **CTFExchange** | `0x4bFb41d5B3570DeFd03C39a9A4D8dE6Bd8B8982E` | Regular markets |
+| **NegRiskExchange** | `0xC5d563A36AE78145C45a50134d48A1215220f80a` | Neg_risk markets |
+| **NegRiskAdapter** | `0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296` | Neg_risk markets |
+
+The `-a` command sets allowance for all three contracts with delays between transactions to avoid public RPC rate limiting.
+
+## Signature Types
+
+The `@polymarket/clob-client` uses signature types for authentication:
+
+| Value | Type | Use Case |
+|-------|------|----------|
+| `0` | EOA | Regular Ethereum wallets (MetaMask, etc.) |
+| `1` | POLY_PROXY | Polymarket proxy wallets |
+| `2` | POLY_GNOSIS_SAFE | Gnosis Safe multisig |
+
+**This CLI uses `0` (EOA)** for regular wallet users.

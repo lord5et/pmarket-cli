@@ -58,4 +58,9 @@ describe('Program', () => {
         const options = program.parse(['node', 'main', '-i', '0x1234']).opts();
         expect(options.init).toBe('0x1234');
     });
+
+    it('should parse positions option', () => {
+        const options = program.parse(['node', 'main', '-p']).opts();
+        expect(options.positions).toBe(true);
+    });
 });
