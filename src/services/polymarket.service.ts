@@ -1,8 +1,10 @@
 import { ClobClient, ApiKeyCreds, Chain, OrderType, Side } from "@polymarket/clob-client";
 import { ethers } from "ethers";
+import axios from "axios";
 import { ConfigService } from "./config.service.js";
 
 const CLOB_API_ENDPOINT = "https://clob.polymarket.com/";
+const DATA_API_ENDPOINT = "https://data-api.polymarket.com";
 
 interface Token {
   token_id: string;
@@ -75,17 +77,60 @@ export class PolymarketService {
     }
   }
 
-  private async ensureInitialized(): Promise<void> {
+  private async ensureInitialized(requireCreds = false): Promise<void> {
     if (this.initialized && this.clobClient) {
-      return;
+      // If we need creds but don't have them, re-initialize with creds
+      if (requireCreds && !this.configService.hasCredentials()) {
+        this.initialized = false;
+      } else {
+        return;
+      }
     }
 
     if (!this.signer) {
       throw new Error("Wallet not initialized. Please check your private key.");
     }
 
-    const creds = this.configService.getCreds();
     const funderAddress = this.configService.getFunderAddress();
+    let creds = this.configService.getCreds();
+
+    // Auto-derive credentials if needed and not available
+    if (requireCreds && !creds) {
+      console.log("API credentials required. Deriving credentials...");
+
+      // Create a temporary client to derive credentials
+      const tempClient = new ClobClient(
+        CLOB_API_ENDPOINT,
+        Chain.POLYGON,
+        this.signer,
+        undefined,
+        0, // SignatureType.EOA for regular wallets
+        funderAddress
+      );
+
+      try {
+        const derivedCreds = await tempClient.deriveApiKey() as ApiKeyCreds & { error?: string };
+
+        if (!derivedCreds.error && derivedCreds.key && derivedCreds.secret && derivedCreds.passphrase) {
+          this.configService.saveCredentials(derivedCreds.key, derivedCreds.secret, derivedCreds.passphrase);
+          creds = { key: derivedCreds.key, secret: derivedCreds.secret, passphrase: derivedCreds.passphrase };
+        } else {
+          throw new Error("Derive failed, creating new key");
+        }
+      } catch {
+        console.log("Creating new API key...");
+        const newCreds = await tempClient.createApiKey();
+
+        // The response should have key, secret, passphrase fields
+        if (!newCreds.key || !newCreds.secret || !newCreds.passphrase) {
+          console.error("Failed to get valid API credentials");
+          throw new Error("Failed to create API credentials - missing required fields");
+        }
+
+        this.configService.saveCredentials(newCreds.key, newCreds.secret, newCreds.passphrase);
+        creds = { key: newCreds.key, secret: newCreds.secret, passphrase: newCreds.passphrase };
+      }
+    }
 
     if (creds) {
       this.clobClient = new ClobClient(
@@ -93,7 +138,7 @@ export class PolymarketService {
         Chain.POLYGON,
         this.signer,
         creds,
-        2,
+        0, // SignatureType.EOA for regular wallets
         funderAddress
       );
     } else {
@@ -102,7 +147,7 @@ export class PolymarketService {
         Chain.POLYGON,
         this.signer,
         undefined,
-        2,
+        0, // SignatureType.EOA for regular wallets
         funderAddress
       );
     }
@@ -149,34 +194,28 @@ export class PolymarketService {
   async marketOrder(
     tokenID: string,
     side: Side,
-    amount: number,
+    size: number,
     price: number
   ): Promise<unknown> {
-    await this.ensureInitialized();
+    await this.ensureInitialized(true); // Requires credentials
     if (!this.clobClient) {
       throw new Error("CLOB client not initialized");
     }
 
-    if (side === Side.BUY) {
-      amount = Math.floor(amount / price);
-    }
+    const orderBook = await this.clobClient.getOrderBook(tokenID) as { neg_risk?: boolean };
+    const isNegRisk = orderBook.neg_risk === true;
 
-    const orderBook = await this.clobClient.getOrderBook(tokenID);
-    console.log(orderBook);
-    console.log(side);
-    console.log("Amount of shares/tokens: " + amount);
-    console.log("Price" + price);
+    console.log(`Creating ${side} order: ${size} shares at $${price}${isNegRisk ? ' (neg_risk market)' : ''}`);
 
     const marketOrder = await this.clobClient.createOrder({
       tokenID: tokenID,
       price: price,
       side: side,
-      size: amount,
+      size: size,
       feeRateBps: 0,
       nonce: 0,
       expiration: 0,
-    });
-    console.log(marketOrder);
+    }, { negRisk: isNegRisk });
 
     const resp = await this.clobClient.postOrder(marketOrder, OrderType.GTC);
     return resp;
@@ -191,46 +230,65 @@ export class PolymarketService {
   }
 
   async cancelAll(): Promise<unknown> {
-    await this.ensureInitialized();
+    await this.ensureInitialized(true); // Requires credentials
     if (!this.clobClient) {
       throw new Error("CLOB client not initialized");
     }
-    const resp = await this.clobClient.cancelAll();
-    console.log(resp);
-    return resp;
+    return this.clobClient.cancelAll();
   }
 
   async getApiKeys(): Promise<ApiKeyCreds> {
-    await this.ensureInitialized();
+    // This will auto-derive credentials if needed
+    await this.ensureInitialized(true);
     if (!this.clobClient) {
       throw new Error("CLOB client not initialized");
     }
 
-    const existingCreds = this.configService.getCreds();
-    if (existingCreds) {
-      console.log("Using existing API credentials from credentials.json");
-      return existingCreds;
+    const creds = this.configService.getCreds();
+    if (creds) {
+      console.log("API credentials ready.");
+      return creds;
     }
 
-    console.log("Deriving new API credentials...");
-    const apiKeys = await this.clobClient.deriveApiKey() as ApiKeyCreds & { error?: string };
-
-    if (!apiKeys.error) {
-      this.configService.saveCredentials(
-        apiKeys.key,
-        apiKeys.secret,
-        apiKeys.passphrase
-      );
-      return apiKeys;
-    } else {
-      console.log("Creating new API key...");
-      const newKeys = await this.clobClient.createApiKey();
-      this.configService.saveCredentials(
-        newKeys.key,
-        newKeys.secret,
-        newKeys.passphrase
-      );
-      return newKeys;
-    }
+    throw new Error("Failed to derive API credentials");
   }
+
+  async getPositions(): Promise<Position[]> {
+    if (!this.signer) {
+      throw new Error("Wallet not initialized. Please check your private key.");
+    }
+
+    const address = await this.signer.getAddress();
+    const response = await axios.get<Position[]>(`${DATA_API_ENDPOINT}/positions`, {
+      params: {
+        user: address,
+        sizeThreshold: 0.01,
+        sortBy: "CURRENT",
+        sortDirection: "DESC",
+      },
+    });
+
+    return response.data;
+  }
+
+  getWalletAddress(): string | undefined {
+    return this.signer?.address;
+  }
+}
+
+export interface Position {
+  asset: string;
+  conditionId: string;
+  curPrice: number;
+  currentValue: number;
+  initialValue: number;
+  outcome: string;
+  percentPnl: number;
+  cashPnl: number;
+  price: number;
+  pricePerShare: number;
+  proxyWallet: string | null;
+  redeemable: boolean;
+  size: number;
+  title: string;
 }

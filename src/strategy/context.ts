@@ -12,6 +12,7 @@ import { CancelAllStrategy } from "./cancel-all-strategy.js";
 import { ApiKeysStrategy } from "./api-keys-strategy.js";
 import { RefreshStrategy } from "./refresh-strategy.js";
 import { InitStrategy } from "./init-strategy.js";
+import { PositionsStrategy } from "./positions-strategy.js";
 
 export class Context {
     private strategy: Strategy | undefined;
@@ -39,7 +40,7 @@ export class Context {
             return new InitStrategy(this.configService);
         }
         if (options.list) {
-            return new ListStrategy(this.polymarketService, this.cacheService);
+            return new ListStrategy(this.cacheService);
         }
         if (options.refresh) {
             return new RefreshStrategy(this.polymarketService, this.cacheService);
@@ -49,6 +50,9 @@ export class Context {
         }
         if (options.sell && Array.isArray(options.sell) && options.sell.length === 3) {
             return new SellStrategy(this.polymarketService);
+        }
+        if (options.positions) {
+            return new PositionsStrategy(this.polymarketService);
         }
         if (options.allowance) {
             return new AllowanceStrategy(this.contractService);

@@ -36,6 +36,8 @@ describe('Context', () => {
         contractService = new ContractService(mockConfigService);
         cacheService = {
             isCacheValid: () => false,
+            hasCache: jest.fn().mockReturnValue(true),
+            getCacheAge: jest.fn().mockReturnValue('5 minutes ago'),
             getCachedMarkets: jest.fn().mockReturnValue([]),
             cacheMarkets: jest.fn(),
             clearCache: jest.fn(),
@@ -51,6 +53,8 @@ describe('Context', () => {
         jest.spyOn(polymarketService, 'getOrderBook').mockImplementation(() => Promise.resolve({}));
         jest.spyOn(polymarketService, 'cancelAll').mockImplementation(() => Promise.resolve({}));
         jest.spyOn(polymarketService, 'getApiKeys').mockImplementation(() => Promise.resolve({} as never));
+        jest.spyOn(polymarketService, 'getPositions').mockImplementation(() => Promise.resolve([]));
+        jest.spyOn(polymarketService, 'getWalletAddress').mockImplementation(() => '0x1234567890abcdef');
         jest.spyOn(contractService, 'setAllowance').mockImplementation(() => Promise.resolve({} as never));
     });
 
@@ -60,7 +64,7 @@ describe('Context', () => {
         expect(strategy).toBeDefined();
         context.setStrategy(strategy!);
         await context.executeStrategy(options);
-        expect(polymarketService.fetchAllMarkets).toHaveBeenCalled();
+        expect(cacheService.getCachedMarkets).toHaveBeenCalled();
     });
 
     it('should use BuyStrategy', async () => {
@@ -134,6 +138,15 @@ describe('Context', () => {
         context.setStrategy(strategy!);
         await context.executeStrategy(options);
         expect(mockConfigService.savePrivateKey).toHaveBeenCalled();
+    });
+
+    it('should use PositionsStrategy', async () => {
+        const options = { positions: true };
+        const strategy = context.determineStrategy(options);
+        expect(strategy).toBeDefined();
+        context.setStrategy(strategy!);
+        await context.executeStrategy(options);
+        expect(polymarketService.getPositions).toHaveBeenCalled();
     });
 
     it('should return undefined for unknown options', () => {
