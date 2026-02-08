@@ -71,7 +71,7 @@ export class PolymarketService {
 
     try {
       this.signer = new ethers.Wallet(privateKey, provider);
-    } catch (error) {
+    } catch {
       console.log("Please provide a valid private key in ~/.pmarket-cli/config.json");
       return;
     }

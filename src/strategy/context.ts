@@ -13,6 +13,7 @@ import { ApiKeysStrategy } from "./api-keys-strategy.js";
 import { RefreshStrategy } from "./refresh-strategy.js";
 import { InitStrategy } from "./init-strategy.js";
 import { PositionsStrategy } from "./positions-strategy.js";
+import { RedeemStrategy } from "./redeem-strategy.js";
 
 export class Context {
     private strategy: Strategy | undefined;
@@ -65,6 +66,9 @@ export class Context {
         }
         if (options.keys) {
             return new ApiKeysStrategy(this.polymarketService);
+        }
+        if (options.redeem) {
+            return new RedeemStrategy(this.polymarketService, this.contractService);
         }
         return undefined;
     }

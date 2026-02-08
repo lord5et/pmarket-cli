@@ -1,6 +1,12 @@
 import { ethers } from "ethers";
 import { usdcContractABI } from "../abi/usdc.js";
+import { conditionalTokensABI } from "../abi/conditional-tokens.js";
+import { negRiskAdapterABI } from "../abi/neg-risk-adapter.js";
 import { ConfigService } from "./config.service.js";
+
+const CONDITIONAL_TOKENS_ADDRESS = '0x4D97DCd97eC945f40cF65F87097ACe5EA0476045';
+const NEG_RISK_ADAPTER_ADDRESS = '0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296';
+const USDC_E_ADDRESS = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
 
 export class ContractService {
     polygonProvider: ethers.providers.JsonRpcProvider;
@@ -15,7 +21,7 @@ export class ContractService {
                 this.configService.getPrivateKey(),
                 this.polygonProvider
             );
-        } catch (error) {
+        } catch {
             console.log("Please provide valid private key in config.json file");
         }
     }
@@ -83,5 +89,67 @@ export class ContractService {
         const negRiskAdapterTx = await usdcContract.approve(negRiskAdapterAddress, allowanceValue, txOptions);
 
         return { ctf: ctfTx, negRisk: negRiskTx, negRiskAdapter: negRiskAdapterTx };
+    }
+
+    async redeemPositions(conditionId: string): Promise<ethers.ContractTransaction> {
+        if (!this.wallet) {
+            throw new Error("Wallet not initialized");
+        }
+
+        const ctf = new ethers.Contract(CONDITIONAL_TOKENS_ADDRESS, conditionalTokensABI, this.wallet);
+        const parentCollectionId = ethers.constants.HashZero;
+        const indexSets = [1, 2]; // YES and NO outcomes
+
+        const feeData = await this.polygonProvider.getFeeData();
+        const minPriorityFee = ethers.utils.parseUnits('30', 'gwei');
+        const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas && feeData.maxPriorityFeePerGas.gt(minPriorityFee)
+            ? feeData.maxPriorityFeePerGas
+            : minPriorityFee;
+        const baseFee = feeData.lastBaseFeePerGas || ethers.utils.parseUnits('30', 'gwei');
+        const maxFeePerGas = baseFee.mul(2).add(maxPriorityFeePerGas);
+        const txOptions = { gasLimit: 200000, maxPriorityFeePerGas, maxFeePerGas };
+
+        const tx = await ctf.redeemPositions(
+            USDC_E_ADDRESS,
+            parentCollectionId,
+            conditionId,
+            indexSets,
+            txOptions
+        );
+        return tx;
+    }
+
+    async redeemNegRiskPositions(conditionId: string, amounts: ethers.BigNumber[]): Promise<ethers.ContractTransaction> {
+        if (!this.wallet) {
+            throw new Error("Wallet not initialized");
+        }
+
+        const ctf = new ethers.Contract(CONDITIONAL_TOKENS_ADDRESS, conditionalTokensABI, this.wallet);
+        const negRiskAdapter = new ethers.Contract(NEG_RISK_ADAPTER_ADDRESS, negRiskAdapterABI, this.wallet);
+
+        // Check if NegRiskAdapter is approved to transfer ERC-1155 tokens
+        const walletAddress = await this.wallet.getAddress();
+        const isApproved = await ctf.isApprovedForAll(walletAddress, NEG_RISK_ADAPTER_ADDRESS);
+
+        const feeData = await this.polygonProvider.getFeeData();
+        const minPriorityFee = ethers.utils.parseUnits('30', 'gwei');
+        const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas && feeData.maxPriorityFeePerGas.gt(minPriorityFee)
+            ? feeData.maxPriorityFeePerGas
+            : minPriorityFee;
+        const baseFee = feeData.lastBaseFeePerGas || ethers.utils.parseUnits('30', 'gwei');
+        const maxFeePerGas = baseFee.mul(2).add(maxPriorityFeePerGas);
+        const txOptions = { gasLimit: 300000, maxPriorityFeePerGas, maxFeePerGas };
+
+        if (!isApproved) {
+            console.log('Approving NegRiskAdapter to transfer conditional tokens...');
+            const approvalTx = await ctf.setApprovalForAll(NEG_RISK_ADAPTER_ADDRESS, true, txOptions);
+            console.log(`Approval tx submitted: ${approvalTx.hash}`);
+            await approvalTx.wait();
+            console.log('Approval confirmed.');
+            console.log('');
+        }
+
+        const tx = await negRiskAdapter.redeemPositions(conditionId, amounts, txOptions);
+        return tx;
     }
 }

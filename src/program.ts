@@ -19,5 +19,6 @@ export const getProgram = (): Command => {
     .option("-c, --cancelAll", "Cancel all open orders. Usage: pmarket-cli -c")
     .option("-k, --keys", "Get or generate api keys. Usage: pmarket-cli -k")
     .option("-i, --init <privateKey>", "Initialize config with your private key. Usage: pmarket-cli -i <your-private-key>")
+    .option("-w, --redeem", "Redeem winning positions from resolved markets. Usage: pmarket-cli -w")
   return program;
 }

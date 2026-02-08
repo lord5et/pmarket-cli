@@ -28,7 +28,7 @@ This file provides context for AI assistants working on this codebase.
 |---------|---------|
 | `config.service.ts` | Loads config from `~/.pmarket-cli/config.json`, manages credentials |
 | `polymarket.service.ts` | Wraps `@polymarket/clob-client`, handles market/order operations |
-| `contract.service.ts` | Ethereum contract interactions (USDC allowance) |
+| `contract.service.ts` | Ethereum contract interactions (USDC allowance, position redemption) |
 | `cache.service.ts` | SQLite caching for market data (1hr TTL) |
 
 ### Strategy Pattern (`src/strategy/`)
@@ -43,6 +43,7 @@ Each CLI command is implemented as a strategy:
 - `order-book-strategy.ts` - `-o` flag, show order book
 - `cancel-all-strategy.ts` - `-c` flag, cancel all orders
 - `api-keys-strategy.ts` - `-k` flag, derive/show API keys
+- `redeem-strategy.ts` - `-w` flag, redeem winning positions from resolved markets
 
 `context.ts` determines which strategy to use based on CLI options.
 
@@ -160,6 +161,17 @@ Three contracts require USDC.e allowance for trading:
 | **NegRiskAdapter** | `0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296` | Neg_risk markets |
 
 The `-a` command sets allowance for all three contracts with delays between transactions to avoid public RPC rate limiting.
+
+### Redemption Contracts (Claiming Winnings)
+
+When a market resolves, winning positions can be redeemed for USDC.e via the `-w` flag. Two contracts are used depending on market type:
+
+| Contract | Address | Purpose |
+|----------|---------|---------|
+| **ConditionalTokens (CTF)** | `0x4D97DCd97eC945f40cF65F87097ACe5EA0476045` | Standard market redemption |
+| **NegRiskAdapter** | `0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296` | Neg_risk market redemption |
+
+The redeem command tries standard CTF redemption first, then falls back to NegRiskAdapter if that fails. For neg_risk markets, the NegRiskAdapter requires ERC-1155 approval on the ConditionalTokens contract (auto-handled).
 
 ## Signature Types
 
