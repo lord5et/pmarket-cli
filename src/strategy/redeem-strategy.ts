@@ -58,21 +58,27 @@ export class RedeemStrategy implements Strategy {
             console.log('');
 
             let redeemed = 0;
+            const delay = (seconds: number) => {
+                console.log(`  Waiting ${seconds}s to avoid RPC rate limits...`);
+                return new Promise(resolve => setTimeout(resolve, seconds * 1000));
+            };
 
             for (const [conditionId, data] of grouped) {
                 console.log(`Redeeming: ${data.title}`);
 
                 try {
-                    // Try standard CTF redemption first
-                    const tx = await this.contractService.redeemPositions(conditionId);
-                    console.log(`  tx submitted: ${tx.hash}`);
-                    await tx.wait();
-                    console.log('  Confirmed (standard market)');
-                    redeemed++;
-                } catch {
-                    // Standard failed, try neg_risk redemption
-                    try {
-                        console.log('  Standard redemption failed, trying neg_risk...');
+                    // Check if user holds USDC.e-backed tokens (standard) or wrapped collateral tokens (neg_risk)
+                    const isStandard = await this.contractService.isStandardRedemption(conditionId);
+                    await delay(5);
+
+                    if (isStandard) {
+                        console.log('  Detected: standard market');
+                        const tx = await this.contractService.redeemPositions(conditionId);
+                        console.log(`  tx submitted: ${tx.hash}`);
+                        await tx.wait();
+                        console.log('  Confirmed (standard market)');
+                    } else {
+                        console.log('  Detected: neg_risk market');
                         const amounts = [
                             ethers.utils.parseUnits(data.yesSize.toFixed(6), 6),
                             ethers.utils.parseUnits(data.noSize.toFixed(6), 6)
@@ -81,18 +87,18 @@ export class RedeemStrategy implements Strategy {
                         console.log(`  tx submitted: ${tx.hash}`);
                         await tx.wait();
                         console.log('  Confirmed (neg_risk market)');
-                        redeemed++;
-                    } catch (negRiskError) {
-                        const msg = negRiskError instanceof Error ? negRiskError.message : String(negRiskError);
-                        console.error(`  Failed to redeem: ${msg}`);
                     }
+                    redeemed++;
+                } catch (error) {
+                    const msg = error instanceof Error ? error.message : String(error);
+                    console.error(`  Failed to redeem: ${msg}`);
                 }
 
                 console.log('');
 
                 // Delay between redemptions to avoid RPC rate limits
                 if (grouped.size > 1) {
-                    await new Promise(resolve => setTimeout(resolve, 5000));
+                    await delay(15);
                 }
             }
 

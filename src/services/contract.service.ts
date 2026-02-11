@@ -91,6 +91,40 @@ export class ContractService {
         return { ctf: ctfTx, negRisk: negRiskTx, negRiskAdapter: negRiskAdapterTx };
     }
 
+    async isStandardRedemption(conditionId: string): Promise<boolean> {
+        if (!this.wallet) {
+            throw new Error("Wallet not initialized");
+        }
+
+        const ctf = new ethers.Contract(CONDITIONAL_TOKENS_ADDRESS, conditionalTokensABI, this.polygonProvider);
+        const walletAddress = await this.wallet.getAddress();
+
+        // Check if user holds USDC.e-backed conditional tokens (standard market)
+        // For neg_risk markets, tokens are backed by wrapped collateral, not USDC.e directly
+        // Only check Yes position (indexSet=1) to minimize RPC calls on public endpoint
+        const yesCollectionId = await ctf.getCollectionId(ethers.constants.HashZero, conditionId, 1);
+        await this.rpcDelay(2);
+        const yesPositionId = await ctf.getPositionId(USDC_E_ADDRESS, yesCollectionId);
+        await this.rpcDelay(2);
+        const yesBalance: ethers.BigNumber = await ctf.balanceOf(walletAddress, yesPositionId);
+
+        if (yesBalance.gt(0)) return true;
+
+        // Also check No position if Yes was empty
+        await this.rpcDelay(2);
+        const noCollectionId = await ctf.getCollectionId(ethers.constants.HashZero, conditionId, 2);
+        await this.rpcDelay(2);
+        const noPositionId = await ctf.getPositionId(USDC_E_ADDRESS, noCollectionId);
+        await this.rpcDelay(2);
+        const noBalance: ethers.BigNumber = await ctf.balanceOf(walletAddress, noPositionId);
+
+        return noBalance.gt(0);
+    }
+
+    private rpcDelay(seconds: number): Promise<void> {
+        return new Promise(resolve => setTimeout(resolve, seconds * 1000));
+    }
+
     async redeemPositions(conditionId: string): Promise<ethers.ContractTransaction> {
         if (!this.wallet) {
             throw new Error("Wallet not initialized");
@@ -129,8 +163,10 @@ export class ContractService {
 
         // Check if NegRiskAdapter is approved to transfer ERC-1155 tokens
         const walletAddress = await this.wallet.getAddress();
+        await this.rpcDelay(3);
         const isApproved = await ctf.isApprovedForAll(walletAddress, NEG_RISK_ADAPTER_ADDRESS);
 
+        await this.rpcDelay(3);
         const feeData = await this.polygonProvider.getFeeData();
         const minPriorityFee = ethers.utils.parseUnits('30', 'gwei');
         const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas && feeData.maxPriorityFeePerGas.gt(minPriorityFee)
