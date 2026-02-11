@@ -56,6 +56,8 @@ describe('Context', () => {
         jest.spyOn(polymarketService, 'getPositions').mockImplementation(() => Promise.resolve([]));
         jest.spyOn(polymarketService, 'getWalletAddress').mockImplementation(() => '0x1234567890abcdef');
         jest.spyOn(contractService, 'setAllowance').mockImplementation(() => Promise.resolve({} as never));
+        jest.spyOn(contractService, 'redeemPositions').mockImplementation(() => Promise.resolve({} as never));
+        jest.spyOn(contractService, 'redeemNegRiskPositions').mockImplementation(() => Promise.resolve({} as never));
     });
 
     it('should use ListStrategy', async () => {
@@ -142,6 +144,15 @@ describe('Context', () => {
 
     it('should use PositionsStrategy', async () => {
         const options = { positions: true };
+        const strategy = context.determineStrategy(options);
+        expect(strategy).toBeDefined();
+        context.setStrategy(strategy!);
+        await context.executeStrategy(options);
+        expect(polymarketService.getPositions).toHaveBeenCalled();
+    });
+
+    it('should use RedeemStrategy', async () => {
+        const options = { redeem: true };
         const strategy = context.determineStrategy(options);
         expect(strategy).toBeDefined();
         context.setStrategy(strategy!);

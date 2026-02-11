@@ -1,4 +1,4 @@
-import { PolymarketService, Position } from "../services/polymarket.service.js";
+import { PolymarketService } from "../services/polymarket.service.js";
 import { Strategy } from "./strategy.js";
 
 export class PositionsStrategy implements Strategy {

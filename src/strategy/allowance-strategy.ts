@@ -20,7 +20,7 @@ export class AllowanceStrategy implements Strategy {
             console.log(`NegRiskAdapter tx: https://polygonscan.com/tx/${negRiskAdapter.hash}`);
             console.log('Waiting for NegRiskAdapter confirmation...');
             const adapterReceipt = await negRiskAdapter.wait();
-            console.log(`NegRiskAdapter allowance confirmed! Block: ${adapterReceipt.blockNumber}`);
+            console.log(`NegRiskAdapter allowance confirmed! Block: ${adapterReceipt?.blockNumber}`);
             console.log('');
 
             console.log(`Allowance set successfully for all exchanges!`);

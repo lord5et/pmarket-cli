@@ -65,13 +65,13 @@ export class PolymarketService {
       return;
     }
 
-    const provider = new ethers.providers.JsonRpcProvider(
+    const provider = new ethers.JsonRpcProvider(
       this.configService.getRpcProvider()
     );
 
     try {
       this.signer = new ethers.Wallet(privateKey, provider);
-    } catch (error) {
+    } catch {
       console.log("Please provide a valid private key in ~/.pmarket-cli/config.json");
       return;
     }
@@ -102,7 +102,7 @@ export class PolymarketService {
       const tempClient = new ClobClient(
         CLOB_API_ENDPOINT,
         Chain.POLYGON,
-        this.signer,
+        this.signer as any,
         undefined,
         0, // SignatureType.EOA for regular wallets
         funderAddress
@@ -136,7 +136,7 @@ export class PolymarketService {
       this.clobClient = new ClobClient(
         CLOB_API_ENDPOINT,
         Chain.POLYGON,
-        this.signer,
+        this.signer as any,
         creds,
         0, // SignatureType.EOA for regular wallets
         funderAddress
@@ -145,7 +145,7 @@ export class PolymarketService {
       this.clobClient = new ClobClient(
         CLOB_API_ENDPOINT,
         Chain.POLYGON,
-        this.signer,
+        this.signer as any,
         undefined,
         0, // SignatureType.EOA for regular wallets
         funderAddress

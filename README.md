@@ -12,6 +12,7 @@ Command line interface for Polymarket.
 - Set USDC allowance for all Polymarket exchange contracts
 - Show order book for specific token
 - Cancel all open orders
+- Redeem winning positions from resolved markets
 - Auto-generate API keys for Polymarket
 
 ---
@@ -160,6 +161,19 @@ pmarket-cli -o <token_id>
 pmarket-cli -c
 ```
 
+### Redeem Winnings
+
+Claim USDC.e from resolved markets where you hold winning positions:
+
+```shell
+pmarket-cli -w
+```
+
+This automatically:
+- Finds all redeemable positions from resolved markets
+- Redeems them via the appropriate contract (ConditionalTokens for standard markets, NegRiskAdapter for neg_risk markets)
+- Returns USDC.e to your wallet
+
 ### Get/Generate API Keys
 
 ```shell
@@ -305,6 +319,36 @@ Response
 
 </details>
 
+<details>
+<summary>Redeem winning positions</summary>
+Command
+
+```shell
+pmarket-cli -w
+```
+
+Response
+
+```shell
+Fetching redeemable positions for 0x1234...
+
+Found 1 resolved market(s) with redeemable positions:
+
+  Will Bitcoin reach $100k by end of 2024?
+  Condition: 0xabc123...
+  Shares: Yes: 100.00
+
+Redeeming positions...
+
+Redeeming: Will Bitcoin reach $100k by end of 2024?
+  tx submitted: 0xdef456...
+  Confirmed (standard market)
+
+Redeemed 1/1 market(s). USDC.e has been returned to your wallet.
+```
+
+</details>
+
 ---
 
 ## Configuration Files
@@ -354,6 +398,7 @@ src/
     ├── list-strategy.ts      # List markets command
     ├── buy-strategy.ts       # Buy command
     ├── sell-strategy.ts      # Sell command
+    ├── redeem-strategy.ts    # Redeem winnings command
     └── ...
 ```
 

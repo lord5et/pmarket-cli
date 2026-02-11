@@ -1,55 +1,60 @@
-name: Development
+name: CI
 
 on:
+  push:
+    branches: [master]
   pull_request:
-    types:
-      - opened
-      - edited
-      - synchronize
-      - reopened
+    branches: [master]
   workflow_call:
 
 jobs:
-  test:
-    name: Test application
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - name: "☁️ checkout repository"
-        uses: actions/checkout@v3
-
-      - name: "🔧 setup node"
-        uses: actions/setup-node@v3
-        with:
-          node-version: 16
-
-      - name: "🔧 install npm@latest"
-        run: npm i -g npm@latest
-
-      - name: "📦 install dependencies"
-        uses: bahmutov/npm-install@v1
-
-      - name: "🔍 run tests"
-        run: npm run test --if-present
-
   lint:
-    name: Code standards
+    name: Lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: "☁️ checkout repository"
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: "🔧 setup node"
-        uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
-          node-version: 16
+          node-version: 22
+          cache: npm
 
-      - name: "🔧 install npm@latest"
-        run: npm i -g npm@latest
+      - run: npm ci --ignore-scripts
 
-      - name: "📦 install dependencies"
-        uses: bahmutov/npm-install@v1
+      - name: Run ESLint
+        run: npx eslint "src/**/*.ts"
 
-      - name: "🔍 lint code"
-        run: npm run lint --if-present
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - name: Compile TypeScript
+        run: npm run build

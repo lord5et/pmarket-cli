@@ -1,19 +1,18 @@
 {
   "name": "pmarket-cli",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "description": "CLI tool to trade on Polymarket",
   "license": "MIT",
   "author": {
-    "name": "Arkadiusz Gotfryd",
-    "email": "arekgotfryd@g.pl"
+    "name": "lord5et"
   },
   "keywords": [
     "cli",
     "npmtool",
     "polymarket"
   ],
-  "repository": "https://github.com/arekgotfryd/pmarket-cli",
-  "homepage": "https://github.com/arekgotfryd/pmarket-cli/blob/master/README.md",
+  "repository": "https://github.com/lord5et/pmarket-cli",
+  "homepage": "https://github.com/lord5et/pmarket-cli/blob/master/README.md",
   "type": "module",
   "main": "dist/main.js",
   "bin": {
@@ -39,7 +38,7 @@
     "better-sqlite3": "^11.7.0",
     "commander": "^12.0.0",
     "dotenv": "^17.2.3",
-    "ethers": "^5.7.2"
+    "ethers": "^6.0.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.12",

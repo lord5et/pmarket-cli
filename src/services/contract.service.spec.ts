@@ -1,4 +1,4 @@
-import { jest } from '@jest/globals';
+import { jest, describe, it, expect } from '@jest/globals';
 import { ConfigService } from './config.service.js';
 import { ContractService } from './contract.service.js';
 
@@ -36,5 +36,45 @@ describe('ContractService', () => {
 
         const contractService = new ContractService(mockConfigService);
         expect(contractService.wallet).toBeDefined();
+    });
+
+    describe('isStandardRedemption', () => {
+        it('should throw when wallet not initialized', async () => {
+            const mockConfigService = {
+                getPrivateKey: () => 'invalid-key',
+                getRpcProvider: () => 'https://polygon-rpc.com',
+                getConfigDir: () => '/tmp',
+            } as unknown as ConfigService;
+
+            const service = new ContractService(mockConfigService);
+            await expect(service.isStandardRedemption('0xcondition')).rejects.toThrow('Wallet not initialized');
+        });
+    });
+
+    describe('redeemPositions', () => {
+        it('should throw when wallet not initialized', async () => {
+            const mockConfigService = {
+                getPrivateKey: () => 'invalid-key',
+                getRpcProvider: () => 'https://polygon-rpc.com',
+                getConfigDir: () => '/tmp',
+            } as unknown as ConfigService;
+
+            const service = new ContractService(mockConfigService);
+            await expect(service.redeemPositions('0xcondition')).rejects.toThrow('Wallet not initialized');
+        });
+    });
+
+    describe('redeemNegRiskPositions', () => {
+        it('should throw when wallet not initialized', async () => {
+            const mockConfigService = {
+                getPrivateKey: () => 'invalid-key',
+                getRpcProvider: () => 'https://polygon-rpc.com',
+                getConfigDir: () => '/tmp',
+            } as unknown as ConfigService;
+
+            const service = new ContractService(mockConfigService);
+            const amounts = [BigInt(10), BigInt(0)];
+            await expect(service.redeemNegRiskPositions('0xcondition', amounts)).rejects.toThrow('Wallet not initialized');
+        });
     });
 });
