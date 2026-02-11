@@ -1,18 +1,30 @@
 name: Publish Package to npmjs
+
 on:
   release:
     types: [published]
+
 jobs:
-  build:
+  ci:
+    uses: ./.github/workflows/development.yml
+
+  publish:
+    name: Publish
+    needs: ci
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
-      # Setup .npmrc file to publish to npm
-      - uses: actions/setup-node@v3
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
         with:
-          node-version: '16.x'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
       - run: npm ci
+
+      - run: npm run build
+
       - run: npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.POLY_CLI_NPM_PUBLISH }}
