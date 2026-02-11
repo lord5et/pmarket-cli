@@ -1,5 +1,4 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals';
-import { ethers } from 'ethers';
+import { jest, describe, it, expect } from '@jest/globals';
 import { ConfigService } from './config.service.js';
 import { ContractService } from './contract.service.js';
 

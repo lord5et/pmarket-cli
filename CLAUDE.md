@@ -14,7 +14,7 @@ This file provides context for AI assistants working on this codebase.
 - **Testing**: Jest with ts-jest (ESM mode)
 - **Key Dependencies**:
   - `@polymarket/clob-client` - Polymarket API client
-  - `ethers` v5 - Ethereum interactions
+  - `ethers` v6 - Ethereum interactions
   - `commander` - CLI argument parsing
   - `better-sqlite3` - Local market data caching
 
@@ -93,8 +93,19 @@ Tests use `@jest/globals` imports for ESM compatibility.
 ```bash
 npm run build    # Compile TypeScript to dist/
 npm test         # Run Jest tests
+npm run lint     # Run ESLint
 npm start        # Run compiled CLI
 ```
+
+## Verification
+
+**IMPORTANT**: After every incremental change, always verify by running all three checks:
+
+```bash
+npm run build && npm test && npm run lint
+```
+
+Do not consider a change complete until build, tests, and linting all pass.
 
 ## Important Files
 
