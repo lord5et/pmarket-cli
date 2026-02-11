@@ -57,7 +57,7 @@ describe('RedeemStrategy', () => {
 
     it('should print message and return when no redeemable positions', async () => {
         const consoleSpy = jest.spyOn(console, 'log');
-        (polymarketService.getPositions as jest.Mock).mockResolvedValue([
+        (polymarketService.getPositions as jest.Mock<any>).mockResolvedValue([
             makePosition({ redeemable: false }),
         ]);
 
@@ -70,10 +70,10 @@ describe('RedeemStrategy', () => {
 
     it('should use standard CTF redemption when isStandardRedemption returns true', async () => {
         const consoleSpy = jest.spyOn(console, 'log');
-        (polymarketService.getPositions as jest.Mock).mockResolvedValue([
+        (polymarketService.getPositions as jest.Mock<any>).mockResolvedValue([
             makePosition({ conditionId: '0xSTD', redeemable: true, size: 20 }),
         ]);
-        (contractService.isStandardRedemption as jest.Mock).mockResolvedValue(true);
+        (contractService.isStandardRedemption as jest.Mock<any>).mockResolvedValue(true);
 
         const promise = strategy.execute();
         await jest.runAllTimersAsync();
@@ -89,10 +89,10 @@ describe('RedeemStrategy', () => {
 
     it('should use NegRiskAdapter when isStandardRedemption returns false', async () => {
         const consoleSpy = jest.spyOn(console, 'log');
-        (polymarketService.getPositions as jest.Mock).mockResolvedValue([
+        (polymarketService.getPositions as jest.Mock<any>).mockResolvedValue([
             makePosition({ conditionId: '0xNEG', redeemable: true, outcome: 'Yes', size: 15 }),
         ]);
-        (contractService.isStandardRedemption as jest.Mock).mockResolvedValue(false);
+        (contractService.isStandardRedemption as jest.Mock<any>).mockResolvedValue(false);
 
         const promise = strategy.execute();
         await jest.runAllTimersAsync();
@@ -102,8 +102,8 @@ describe('RedeemStrategy', () => {
         expect(contractService.redeemNegRiskPositions).toHaveBeenCalledWith(
             '0xNEG',
             [
-                ethers.utils.parseUnits('15.000000', 6),
-                ethers.utils.parseUnits('0.000000', 6),
+                ethers.parseUnits('15.000000', 6),
+                ethers.parseUnits('0.000000', 6),
             ]
         );
         expect(contractService.redeemPositions).not.toHaveBeenCalled();
@@ -112,11 +112,11 @@ describe('RedeemStrategy', () => {
     });
 
     it('should group Yes and No positions by conditionId', async () => {
-        (polymarketService.getPositions as jest.Mock).mockResolvedValue([
+        (polymarketService.getPositions as jest.Mock<any>).mockResolvedValue([
             makePosition({ conditionId: '0xABC', outcome: 'Yes', size: 10, redeemable: true }),
             makePosition({ conditionId: '0xABC', outcome: 'No', size: 5, redeemable: true }),
         ]);
-        (contractService.isStandardRedemption as jest.Mock).mockResolvedValue(false);
+        (contractService.isStandardRedemption as jest.Mock<any>).mockResolvedValue(false);
 
         const promise = strategy.execute();
         await jest.runAllTimersAsync();
@@ -126,18 +126,18 @@ describe('RedeemStrategy', () => {
         expect(contractService.redeemNegRiskPositions).toHaveBeenCalledWith(
             '0xABC',
             [
-                ethers.utils.parseUnits('10.000000', 6),
-                ethers.utils.parseUnits('5.000000', 6),
+                ethers.parseUnits('10.000000', 6),
+                ethers.parseUnits('5.000000', 6),
             ]
         );
     });
 
     it('should handle multiple conditions from different markets separately', async () => {
-        (polymarketService.getPositions as jest.Mock).mockResolvedValue([
+        (polymarketService.getPositions as jest.Mock<any>).mockResolvedValue([
             makePosition({ conditionId: '0xMARKET1', outcome: 'Yes', size: 15, redeemable: true, title: 'Market A' }),
             makePosition({ conditionId: '0xMARKET2', outcome: 'Yes', size: 5, redeemable: true, title: 'Market B' }),
         ]);
-        (contractService.isStandardRedemption as jest.Mock).mockResolvedValue(false);
+        (contractService.isStandardRedemption as jest.Mock<any>).mockResolvedValue(false);
 
         const promise = strategy.execute();
         await jest.runAllTimersAsync();
@@ -147,20 +147,20 @@ describe('RedeemStrategy', () => {
         expect(contractService.redeemNegRiskPositions).toHaveBeenCalledTimes(2);
         expect(contractService.redeemNegRiskPositions).toHaveBeenCalledWith(
             '0xMARKET1',
-            [ethers.utils.parseUnits('15.000000', 6), ethers.utils.parseUnits('0.000000', 6)]
+            [ethers.parseUnits('15.000000', 6), ethers.parseUnits('0.000000', 6)]
         );
         expect(contractService.redeemNegRiskPositions).toHaveBeenCalledWith(
             '0xMARKET2',
-            [ethers.utils.parseUnits('5.000000', 6), ethers.utils.parseUnits('0.000000', 6)]
+            [ethers.parseUnits('5.000000', 6), ethers.parseUnits('0.000000', 6)]
         );
     });
 
     it('should filter out non-redeemable positions', async () => {
-        (polymarketService.getPositions as jest.Mock).mockResolvedValue([
+        (polymarketService.getPositions as jest.Mock<any>).mockResolvedValue([
             makePosition({ conditionId: '0xREDEEM', redeemable: true, size: 10 }),
             makePosition({ conditionId: '0xOPEN', redeemable: false, size: 20 }),
         ]);
-        (contractService.isStandardRedemption as jest.Mock).mockResolvedValue(true);
+        (contractService.isStandardRedemption as jest.Mock<any>).mockResolvedValue(true);
 
         const promise = strategy.execute();
         await jest.runAllTimersAsync();
@@ -173,14 +173,14 @@ describe('RedeemStrategy', () => {
     it('should handle redemption failure gracefully and continue', async () => {
         const consoleErrorSpy = jest.spyOn(console, 'error');
         const consoleSpy = jest.spyOn(console, 'log');
-        (polymarketService.getPositions as jest.Mock).mockResolvedValue([
+        (polymarketService.getPositions as jest.Mock<any>).mockResolvedValue([
             makePosition({ conditionId: '0xFAIL', redeemable: true, title: 'Failing Market' }),
             makePosition({ conditionId: '0xOK', redeemable: true, title: 'OK Market' }),
         ]);
-        (contractService.isStandardRedemption as jest.Mock)
+        (contractService.isStandardRedemption as jest.Mock<any>)
             .mockResolvedValueOnce(true)
             .mockResolvedValueOnce(true);
-        (contractService.redeemPositions as jest.Mock)
+        (contractService.redeemPositions as jest.Mock<any>)
             .mockRejectedValueOnce(new Error('tx reverted'))
             .mockResolvedValueOnce(mockTx);
 
@@ -196,10 +196,10 @@ describe('RedeemStrategy', () => {
 
     it('should handle detection failure gracefully', async () => {
         const consoleErrorSpy = jest.spyOn(console, 'error');
-        (polymarketService.getPositions as jest.Mock).mockResolvedValue([
+        (polymarketService.getPositions as jest.Mock<any>).mockResolvedValue([
             makePosition({ conditionId: '0xRPC_FAIL', redeemable: true }),
         ]);
-        (contractService.isStandardRedemption as jest.Mock)
+        (contractService.isStandardRedemption as jest.Mock<any>)
             .mockRejectedValue(new Error('RPC rate limit'));
 
         const promise = strategy.execute();
@@ -213,10 +213,10 @@ describe('RedeemStrategy', () => {
     });
 
     it('should pass correct amounts for No-only position in neg_risk market', async () => {
-        (polymarketService.getPositions as jest.Mock).mockResolvedValue([
+        (polymarketService.getPositions as jest.Mock<any>).mockResolvedValue([
             makePosition({ conditionId: '0xNO_ONLY', outcome: 'No', size: 25, redeemable: true }),
         ]);
-        (contractService.isStandardRedemption as jest.Mock).mockResolvedValue(false);
+        (contractService.isStandardRedemption as jest.Mock<any>).mockResolvedValue(false);
 
         const promise = strategy.execute();
         await jest.runAllTimersAsync();
@@ -225,8 +225,8 @@ describe('RedeemStrategy', () => {
         expect(contractService.redeemNegRiskPositions).toHaveBeenCalledWith(
             '0xNO_ONLY',
             [
-                ethers.utils.parseUnits('0.000000', 6),
-                ethers.utils.parseUnits('25.000000', 6),
+                ethers.parseUnits('0.000000', 6),
+                ethers.parseUnits('25.000000', 6),
             ]
         );
     });

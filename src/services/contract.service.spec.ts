@@ -74,7 +74,7 @@ describe('ContractService', () => {
             } as unknown as ConfigService;
 
             const service = new ContractService(mockConfigService);
-            const amounts = [ethers.BigNumber.from(10), ethers.BigNumber.from(0)];
+            const amounts = [BigInt(10), BigInt(0)];
             await expect(service.redeemNegRiskPositions('0xcondition', amounts)).rejects.toThrow('Wallet not initialized');
         });
     });

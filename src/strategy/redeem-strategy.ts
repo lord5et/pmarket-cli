@@ -80,8 +80,8 @@ export class RedeemStrategy implements Strategy {
                     } else {
                         console.log('  Detected: neg_risk market');
                         const amounts = [
-                            ethers.utils.parseUnits(data.yesSize.toFixed(6), 6),
-                            ethers.utils.parseUnits(data.noSize.toFixed(6), 6)
+                            ethers.parseUnits(data.yesSize.toFixed(6), 6),
+                            ethers.parseUnits(data.noSize.toFixed(6), 6)
                         ];
                         const tx = await this.contractService.redeemNegRiskPositions(conditionId, amounts);
                         console.log(`  tx submitted: ${tx.hash}`);

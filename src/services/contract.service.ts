@@ -9,11 +9,11 @@ const NEG_RISK_ADAPTER_ADDRESS = '0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296';
 const USDC_E_ADDRESS = '0x2791Bca1f2de4661ED88A30C99A7a9449Aa84174';
 
 export class ContractService {
-    polygonProvider: ethers.providers.JsonRpcProvider;
+    polygonProvider: ethers.JsonRpcProvider;
     wallet: ethers.Wallet | undefined;
 
     constructor(private configService: ConfigService) {
-        this.polygonProvider = new ethers.providers.JsonRpcProvider(
+        this.polygonProvider = new ethers.JsonRpcProvider(
             this.configService.getRpcProvider()
         );
         try {
@@ -26,7 +26,7 @@ export class ContractService {
         }
     }
 
-    async setAllowance(amountOfAllowedUSDC: number): Promise<{ ctf: ethers.ContractTransaction; negRisk: ethers.ContractTransaction; negRiskAdapter: ethers.ContractTransaction }> {
+    async setAllowance(amountOfAllowedUSDC: number): Promise<{ ctf: ethers.ContractTransactionResponse; negRisk: ethers.ContractTransactionResponse; negRiskAdapter: ethers.ContractTransactionResponse }> {
         if (!this.wallet) {
             throw new Error("Wallet not initialized");
         }
@@ -40,20 +40,20 @@ export class ContractService {
         // NegRiskAdapter for neg_risk markets
         const negRiskAdapterAddress = '0xd91E80cF2E7be2e162c6513ceD06f1dD0dA35296';
 
-        const allowanceValue = ethers.utils.parseUnits(amountOfAllowedUSDC.toString(), '6');
+        const allowanceValue = ethers.parseUnits(amountOfAllowedUSDC.toString(), 6);
 
         // Get current gas prices from the network
         const feeData = await this.polygonProvider.getFeeData();
 
         // Polygon requires minimum 25 gwei priority fee, use 30 gwei to be safe
-        const minPriorityFee = ethers.utils.parseUnits('30', 'gwei');
-        const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas && feeData.maxPriorityFeePerGas.gt(minPriorityFee)
+        const minPriorityFee = ethers.parseUnits('30', 'gwei');
+        const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas && feeData.maxPriorityFeePerGas > minPriorityFee
             ? feeData.maxPriorityFeePerGas
             : minPriorityFee;
 
         // Max fee = base fee * 2 + priority fee (to handle base fee fluctuations)
-        const baseFee = feeData.lastBaseFeePerGas || ethers.utils.parseUnits('30', 'gwei');
-        const maxFeePerGas = baseFee.mul(2).add(maxPriorityFeePerGas);
+        const baseFee = feeData.maxFeePerGas || ethers.parseUnits('30', 'gwei');
+        const maxFeePerGas = baseFee * 2n + maxPriorityFeePerGas;
 
         const gasLimit = 100000;
         const txOptions = { gasLimit, maxPriorityFeePerGas, maxFeePerGas };
@@ -102,45 +102,45 @@ export class ContractService {
         // Check if user holds USDC.e-backed conditional tokens (standard market)
         // For neg_risk markets, tokens are backed by wrapped collateral, not USDC.e directly
         // Only check Yes position (indexSet=1) to minimize RPC calls on public endpoint
-        const yesCollectionId = await ctf.getCollectionId(ethers.constants.HashZero, conditionId, 1);
+        const yesCollectionId = await ctf.getCollectionId(ethers.ZeroHash, conditionId, 1);
         await this.rpcDelay(2);
         const yesPositionId = await ctf.getPositionId(USDC_E_ADDRESS, yesCollectionId);
         await this.rpcDelay(2);
-        const yesBalance: ethers.BigNumber = await ctf.balanceOf(walletAddress, yesPositionId);
+        const yesBalance: bigint = await ctf.balanceOf(walletAddress, yesPositionId);
 
-        if (yesBalance.gt(0)) return true;
+        if (yesBalance > 0n) return true;
 
         // Also check No position if Yes was empty
         await this.rpcDelay(2);
-        const noCollectionId = await ctf.getCollectionId(ethers.constants.HashZero, conditionId, 2);
+        const noCollectionId = await ctf.getCollectionId(ethers.ZeroHash, conditionId, 2);
         await this.rpcDelay(2);
         const noPositionId = await ctf.getPositionId(USDC_E_ADDRESS, noCollectionId);
         await this.rpcDelay(2);
-        const noBalance: ethers.BigNumber = await ctf.balanceOf(walletAddress, noPositionId);
+        const noBalance: bigint = await ctf.balanceOf(walletAddress, noPositionId);
 
-        return noBalance.gt(0);
+        return noBalance > 0n;
     }
 
     private rpcDelay(seconds: number): Promise<void> {
         return new Promise(resolve => setTimeout(resolve, seconds * 1000));
     }
 
-    async redeemPositions(conditionId: string): Promise<ethers.ContractTransaction> {
+    async redeemPositions(conditionId: string): Promise<ethers.ContractTransactionResponse> {
         if (!this.wallet) {
             throw new Error("Wallet not initialized");
         }
 
         const ctf = new ethers.Contract(CONDITIONAL_TOKENS_ADDRESS, conditionalTokensABI, this.wallet);
-        const parentCollectionId = ethers.constants.HashZero;
+        const parentCollectionId = ethers.ZeroHash;
         const indexSets = [1, 2]; // YES and NO outcomes
 
         const feeData = await this.polygonProvider.getFeeData();
-        const minPriorityFee = ethers.utils.parseUnits('30', 'gwei');
-        const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas && feeData.maxPriorityFeePerGas.gt(minPriorityFee)
+        const minPriorityFee = ethers.parseUnits('30', 'gwei');
+        const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas && feeData.maxPriorityFeePerGas > minPriorityFee
             ? feeData.maxPriorityFeePerGas
             : minPriorityFee;
-        const baseFee = feeData.lastBaseFeePerGas || ethers.utils.parseUnits('30', 'gwei');
-        const maxFeePerGas = baseFee.mul(2).add(maxPriorityFeePerGas);
+        const baseFee = feeData.maxFeePerGas || ethers.parseUnits('30', 'gwei');
+        const maxFeePerGas = baseFee * 2n + maxPriorityFeePerGas;
         const txOptions = { gasLimit: 200000, maxPriorityFeePerGas, maxFeePerGas };
 
         const tx = await ctf.redeemPositions(
@@ -153,7 +153,7 @@ export class ContractService {
         return tx;
     }
 
-    async redeemNegRiskPositions(conditionId: string, amounts: ethers.BigNumber[]): Promise<ethers.ContractTransaction> {
+    async redeemNegRiskPositions(conditionId: string, amounts: bigint[]): Promise<ethers.ContractTransactionResponse> {
         if (!this.wallet) {
             throw new Error("Wallet not initialized");
         }
@@ -168,12 +168,12 @@ export class ContractService {
 
         await this.rpcDelay(3);
         const feeData = await this.polygonProvider.getFeeData();
-        const minPriorityFee = ethers.utils.parseUnits('30', 'gwei');
-        const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas && feeData.maxPriorityFeePerGas.gt(minPriorityFee)
+        const minPriorityFee = ethers.parseUnits('30', 'gwei');
+        const maxPriorityFeePerGas = feeData.maxPriorityFeePerGas && feeData.maxPriorityFeePerGas > minPriorityFee
             ? feeData.maxPriorityFeePerGas
             : minPriorityFee;
-        const baseFee = feeData.lastBaseFeePerGas || ethers.utils.parseUnits('30', 'gwei');
-        const maxFeePerGas = baseFee.mul(2).add(maxPriorityFeePerGas);
+        const baseFee = feeData.maxFeePerGas || ethers.parseUnits('30', 'gwei');
+        const maxFeePerGas = baseFee * 2n + maxPriorityFeePerGas;
         const txOptions = { gasLimit: 300000, maxPriorityFeePerGas, maxFeePerGas };
 
         if (!isApproved) {
