@@ -11,6 +11,7 @@ const DEFAULT_RPC_PROVIDER = 'https://polygon-rpc.com';
 
 interface Config {
     privateKey: string;
+    rpcUrl?: string;
 }
 
 interface Credentials {
@@ -73,7 +74,7 @@ export class ConfigService {
     }
 
     getRpcProvider(): string {
-        return DEFAULT_RPC_PROVIDER;
+        return this.config.rpcUrl || DEFAULT_RPC_PROVIDER;
     }
 
     getFunderAddress(): string {
