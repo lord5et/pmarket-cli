@@ -74,6 +74,19 @@ That's it! The tool will:
 - Use a public Polygon RPC (`https://polygon-rpc.com`) by default
 - Auto-generate and cache API credentials on first use
 
+### Optional: Custom RPC Provider
+
+By default, `pmarket-cli` uses `https://polygon-rpc.com`. To use a different Polygon RPC provider, add `rpcUrl` to your config file (`~/.pmarket-cli/config.json`):
+
+```json
+{
+    "privateKey": "your-private-key",
+    "rpcUrl": "https://polygon-bor-rpc.publicnode.com"
+}
+```
+
+This is useful if the default RPC is slow, rate-limited, or unreliable in your region.
+
 ### Optional: Generate API Keys Manually
 
 If you want to see or regenerate your API keys:
@@ -357,7 +370,7 @@ All configuration is stored in `~/.pmarket-cli/`:
 
 | File | Purpose |
 |------|---------|
-| `config.json` | Your private key |
+| `config.json` | Private key and settings (e.g. `rpcUrl`) |
 | `credentials.json` | Auto-generated API credentials |
 | `cache.db` | SQLite cache for market data |
 
