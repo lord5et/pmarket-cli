@@ -49,6 +49,7 @@ describe('Context', () => {
 
         jest.spyOn(polymarketService, 'getMarketsAcceptingOrders').mockImplementation(() => Promise.resolve([]));
         jest.spyOn(polymarketService, 'fetchAllMarkets').mockImplementation(() => Promise.resolve([]));
+        jest.spyOn(polymarketService, 'fetchAllMarketsStreaming').mockImplementation(() => Promise.resolve(0));
         jest.spyOn(polymarketService, 'marketOrder').mockImplementation(() => Promise.resolve({}));
         jest.spyOn(polymarketService, 'getOrderBook').mockImplementation(() => Promise.resolve({}));
         jest.spyOn(polymarketService, 'cancelAll').mockImplementation(() => Promise.resolve({}));
@@ -129,8 +130,8 @@ describe('Context', () => {
         expect(strategy).toBeDefined();
         context.setStrategy(strategy!);
         await context.executeStrategy(options);
-        expect(polymarketService.fetchAllMarkets).toHaveBeenCalled();
-        expect(cacheService.cacheMarkets).toHaveBeenCalled();
+        expect(cacheService.clearCache).toHaveBeenCalled();
+        expect(polymarketService.fetchAllMarketsStreaming).toHaveBeenCalled();
     });
 
     it('should use InitStrategy', async () => {

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-02-16
+
+### Added
+
+- **Custom RPC support**: Set `rpcUrl` in `~/.pmarket-cli/config.json` to use an alternative Polygon RPC provider (falls back to `polygon-rpc.com` if not set)
+- **Streaming market refresh**: New `fetchAllMarketsStreaming()` method writes each page (1000 markets) directly to SQLite instead of accumulating all markets in memory — prevents OOM crash (V8 heap abort) on 440k+ markets
+- **Rate limit retry with backoff**: API calls retry up to 5 times with exponential backoff (5s increments) on errors or empty responses
+- **Page delay**: 200ms delay between pages during refresh to avoid hitting CLOB API rate limits
+
+### Changed
+
+- `RefreshStrategy` now clears cache before refresh and uses streaming method
+- `fetchAllMarkets()` also has retry logic (used by `getMarketsAcceptingOrders()`)
+
+### Fixed
+
+- V8 heap abort (exit code 134) when refreshing full market cache with 440k+ markets
+
 ## [0.9.0] - 2026-02-05
 
 ### ⚠️ BREAKING CHANGES

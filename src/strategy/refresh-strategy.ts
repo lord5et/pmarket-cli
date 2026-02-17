@@ -10,11 +10,8 @@ export class RefreshStrategy implements Strategy {
 
     async execute(): Promise<void> {
         console.log('Fetching market data from Polymarket...');
-        const allMarkets = await this.polymarketService.fetchAllMarkets();
-
-        this.cacheService.cacheMarkets(allMarkets);
-
-        const activeCount = allMarkets.filter(m => m.active && !m.closed).length;
-        console.log(`Cache refreshed: ${allMarkets.length} total markets, ${activeCount} active.`);
+        this.cacheService.clearCache();
+        const totalCount = await this.polymarketService.fetchAllMarketsStreaming(this.cacheService);
+        console.log(`Cache refreshed: ${totalCount} total markets.`);
     }
 }

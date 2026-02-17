@@ -2,6 +2,7 @@ import { ClobClient, ApiKeyCreds, Chain, OrderType, Side } from "@polymarket/clo
 import { ethers } from "ethers";
 import axios from "axios";
 import { ConfigService } from "./config.service.js";
+import { CacheService } from "./cache.service.js";
 
 const CLOB_API_ENDPOINT = "https://clob.polymarket.com/";
 const DATA_API_ENDPOINT = "https://data-api.polymarket.com";
@@ -163,9 +164,35 @@ export class PolymarketService {
 
     const allMarkets: Market[] = [];
     let nextCursor = "";
+    let retries = 0;
 
     while (true) {
-      const response: MarketsResponse = await this.clobClient.getMarkets(nextCursor);
+      let response: MarketsResponse;
+      try {
+        response = await this.clobClient.getMarkets(nextCursor);
+      } catch (e) {
+        if (retries < 5) {
+          retries++;
+          const wait = retries * 5000;
+          console.log(`Rate limited, waiting ${wait / 1000}s (retry ${retries}/5)...`);
+          await new Promise(r => setTimeout(r, wait));
+          continue;
+        }
+        throw e;
+      }
+
+      if (!response || !response.data) {
+        if (retries < 5) {
+          retries++;
+          const wait = retries * 5000;
+          console.log(`Empty response, waiting ${wait / 1000}s (retry ${retries}/5)...`);
+          await new Promise(r => setTimeout(r, wait));
+          continue;
+        }
+        break;
+      }
+
+      retries = 0;
       allMarkets.push(...response.data);
 
       if (response.next_cursor === "LTE=" || !response.next_cursor) {
@@ -173,9 +200,67 @@ export class PolymarketService {
       }
 
       nextCursor = response.next_cursor;
+      await new Promise(r => setTimeout(r, 200));
     }
 
     return allMarkets;
+  }
+
+  async fetchAllMarketsStreaming(cacheService: CacheService): Promise<number> {
+    await this.ensureInitialized();
+    if (!this.clobClient) {
+      throw new Error("CLOB client not initialized");
+    }
+
+    let nextCursor = "";
+    let retries = 0;
+    let totalCount = 0;
+    let pageNum = 0;
+
+    while (true) {
+      let response: MarketsResponse;
+      try {
+        response = await this.clobClient.getMarkets(nextCursor);
+      } catch (e) {
+        if (retries < 5) {
+          retries++;
+          const wait = retries * 5000;
+          console.log(`Rate limited, waiting ${wait / 1000}s (retry ${retries}/5)...`);
+          await new Promise(r => setTimeout(r, wait));
+          continue;
+        }
+        throw e;
+      }
+
+      if (!response || !response.data) {
+        if (retries < 5) {
+          retries++;
+          const wait = retries * 5000;
+          console.log(`Empty response, waiting ${wait / 1000}s (retry ${retries}/5)...`);
+          await new Promise(r => setTimeout(r, wait));
+          continue;
+        }
+        break;
+      }
+
+      retries = 0;
+      pageNum++;
+      totalCount += response.data.length;
+
+      // Write each page directly to SQLite to avoid OOM on 440k+ markets
+      cacheService.cacheMarkets(response.data);
+      process.stdout.write(`\rFetched page ${pageNum} (${totalCount} markets)...`);
+
+      if (response.next_cursor === "LTE=" || !response.next_cursor) {
+        break;
+      }
+
+      nextCursor = response.next_cursor;
+      await new Promise(r => setTimeout(r, 200));
+    }
+
+    console.log('');
+    return totalCount;
   }
 
   async getMarketsAcceptingOrders(): Promise<Array<{ yes: Token; no: Token; question: string }>> {
